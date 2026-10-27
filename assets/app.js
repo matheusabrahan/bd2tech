@@ -52,17 +52,6 @@
     });
   });
 
-  // Animação de entrada
-  if ("IntersectionObserver" in window) {
-    var alvos = document.querySelectorAll(".card, .case, .passos li, .setores li, .socio, .numeros li, .sec__head");
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) {
-        if (e.isIntersecting) { e.target.classList.add("visivel"); io.unobserve(e.target); }
-      });
-    }, { rootMargin: "0px 0px -8% 0px" });
-    alvos.forEach(function (el) { el.classList.add("revela"); io.observe(el); });
-  }
-
   // Eventos de conversão (funciona com GA4/gtag se for instalado depois)
   function track(nome, dados) {
     try { if (typeof window.gtag === "function") window.gtag("event", nome, dados || {}); } catch (e) {}
