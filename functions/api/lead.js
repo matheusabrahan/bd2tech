@@ -18,7 +18,7 @@ const esc = (s) =>
 
 export async function onRequestPost({ request, env }) {
   const origin = request.headers.get("Origin");
-  if (origin && env.ALLOWED_ORIGIN && !env.ALLOWED_ORIGIN.split(",").includes(origin)) {
+  if (origin && env.ALLOWED_ORIGIN && !env.ALLOWED_ORIGIN.split(",").map((s) => s.trim()).includes(origin)) {
     return json({ ok: false, erro: "origem" }, 403);
   }
 
@@ -28,17 +28,25 @@ export async function onRequestPost({ request, env }) {
   } catch {
     return json({ ok: false, erro: "json" }, 400);
   }
+  if (!dados || typeof dados !== "object" || Array.isArray(dados)) {
+    return json({ ok: false, erro: "json" }, 400);
+  }
 
   // Honeypot: robôs preenchem o campo escondido. Fingimos sucesso.
   if (dados.site) return json({ ok: true });
 
   const lead = {};
   for (const [campo, max] of Object.entries(LIMITES)) {
-    lead[campo] = String(dados[campo] ?? "").trim().slice(0, max);
+    // Remove caracteres de controle (evita quebra de linha no assunto do e-mail); só a mensagem mantém \n
+    const controle = campo === "mensagem" ? /[\u0000-\u0009\u000B-\u001F\u007F]/g : /[\u0000-\u001F\u007F]/g;
+    lead[campo] = String(dados[campo] ?? "").replace(controle, " ").trim().slice(0, max);
   }
-  const digitos = lead.whatsapp.replace(/\D/g, "");
+  const digitos = lead.whatsapp.replace(/\D/g, "").replace(/^0+/, "");
   if (!lead.nome || !lead.servico || digitos.length < 10) {
     return json({ ok: false, erro: "campos" }, 422);
+  }
+  if (!dados.aceite) {
+    return json({ ok: false, erro: "aceite" }, 422);
   }
   if (lead.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) {
     return json({ ok: false, erro: "email" }, 422);
@@ -48,6 +56,8 @@ export async function onRequestPost({ request, env }) {
   lead.origem = Object.fromEntries(Object.entries(o).slice(0, 10).map(([k, v]) => [String(k).slice(0, 30), String(v).slice(0, 300)]));
   lead.id = crypto.randomUUID();
   lead.recebido_em = new Date().toISOString();
+  // Registro do consentimento (LGPD): o formulário só envia com o aceite da Política de Privacidade
+  lead.consentimento = { aceite: true, em: lead.recebido_em, politica: "/privacidade/" };
   lead.ip_pais = request.cf?.country || "";
   lead.whatsapp_link = `https://wa.me/${digitos.length <= 11 ? "55" + digitos : digitos}`;
 
@@ -76,6 +86,7 @@ export async function onRequestPost({ request, env }) {
       fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(8000),
         body: JSON.stringify({
           from: env.LEAD_FROM_EMAIL || "BD2 Tech <site@bd2tech.com.br>",
           to: env.LEAD_TO_EMAIL.split(",").map((s) => s.trim()),
@@ -93,6 +104,7 @@ export async function onRequestPost({ request, env }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(lead),
+        signal: AbortSignal.timeout(8000),
       }).then((r) => { if (!r.ok) throw new Error(`webhook ${r.status}`); })
     );
   }

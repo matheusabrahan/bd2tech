@@ -9,7 +9,7 @@
   --borda: #1F2A36;
   --texto: #E6EDF3;
   --suave: #9AA8B6;
-  --apagado: #6B7A89;
+  --apagado: #7A8998;
   --teal: #2DD4BF;
   --teal-escuro: #0D9488;
   --ciano: #67E8F9;
@@ -29,7 +29,7 @@ h1 { font-size: clamp(2.3rem, 5vw, 3.75rem); font-weight: 700; letter-spacing: -
 h2 { font-size: clamp(1.75rem, 3.4vw, 2.5rem); font-weight: 700; }
 h3 { font-size: 1.15rem; font-weight: 600; }
 p { margin: 0 0 1em; }
-:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; border-radius: 6px; }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
 
 .wrap { width: 100%; max-width: 1160px; margin: 0 auto; padding: 0 20px; }
 .wrap--estreito { max-width: 800px; }
@@ -142,11 +142,10 @@ p { margin: 0 0 1em; }
 
 /* Sócios: dois blocos com o símbolo b+d no meio */
 .socios { display: grid; grid-template-columns: 1fr auto 1fr; gap: 40px; align-items: stretch; }
-.socios__simbolo { align-self: center; }
 .socio { padding: 28px; border: 1px solid var(--borda); border-radius: var(--raio); }
 .socio p { color: var(--suave); font-size: .96rem; }
 .socio a { font-weight: 600; font-size: .93rem; }
-.socios__simbolo { width: 96px; height: 96px; }
+.socios__simbolo { width: 96px; height: 96px; align-self: center; }
 
 /* FAQ */
 .faq details { max-width: 46em; }
@@ -184,6 +183,7 @@ input::placeholder, textarea::placeholder { color: var(--apagado); }
 .form__status { margin: 14px 0 0; font-size: .95rem; min-height: 1.5em; }
 .form__status.ok { color: var(--teal); }
 .form__status.erro { color: #F87171; }
+.form__status .btn { margin-top: 10px; }
 .sucesso { text-align: center; padding: 24px 8px; }
 .sucesso h3 { font-size: 1.5rem; }
 .sucesso p { color: var(--suave); }

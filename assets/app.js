@@ -44,7 +44,7 @@
   var ano = document.getElementById("ano");
   if (ano) ano.textContent = new Date().getFullYear();
 
-  // Cards de serviço pré-selecionam o serviço no formulário
+  // Links de serviço pré-selecionam o serviço no formulário
   var selServico = document.getElementById("servico");
   document.querySelectorAll("[data-servico]").forEach(function (a) {
     a.addEventListener("click", function () {
@@ -90,18 +90,33 @@
   }
 
   function validar() {
-    var ok = true;
-    form.querySelectorAll(".invalido").forEach(function (el) { el.classList.remove("invalido"); });
+    var invalidos = [];
+    form.querySelectorAll(".invalido").forEach(function (el) {
+      el.classList.remove("invalido");
+      el.removeAttribute("aria-invalid");
+    });
     ["nome", "servico"].forEach(function (id) {
       var el = form.querySelector("#" + id);
-      if (!el.value.trim()) { el.classList.add("invalido"); ok = false; }
+      if (!el.value.trim()) invalidos.push(el);
     });
-    if (tel.value.replace(/\D/g, "").length < 10) { tel.classList.add("invalido"); ok = false; }
+    if (tel.value.replace(/\D/g, "").length < 10) invalidos.push(tel);
     var email = form.querySelector("#email");
-    if (email.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) { email.classList.add("invalido"); ok = false; }
-    if (!form.aceite.checked) { ok = false; msgStatus("Marque o aceite da Política de Privacidade para continuar.", "erro"); return false; }
-    if (!ok) msgStatus("Confira os campos destacados.", "erro");
-    return ok;
+    if (email.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) invalidos.push(email);
+    invalidos.forEach(function (el) {
+      el.classList.add("invalido");
+      el.setAttribute("aria-invalid", "true");
+    });
+    if (invalidos.length) {
+      msgStatus("Confira os campos destacados.", "erro");
+      invalidos[0].focus();
+      return false;
+    }
+    if (!form.aceite.checked) {
+      msgStatus("Marque o aceite da Política de Privacidade para continuar.", "erro");
+      form.aceite.focus();
+      return false;
+    }
+    return true;
   }
 
   function textoWhats(d) {
@@ -112,11 +127,12 @@
   function sucesso(d) {
     track("generate_lead", { servico: d.servico });
     form.innerHTML =
-      '<div class="sucesso">' +
-      "<h3>Recebemos o seu contato!</h3>" +
+      '<div class="sucesso" role="status">' +
+      '<h3 tabindex="-1">Recebemos o seu contato!</h3>' +
       "<p>Obrigado, " + escapeHtml(d.nome.split(" ")[0]) + ". Vamos responder em até 24h para marcar o seu diagnóstico gratuito.</p>" +
       '<a class="btn btn--lg" target="_blank" rel="noopener" href="' + linkWhats(textoWhats(d)) + '">Adiantar pelo WhatsApp</a>' +
       "</div>";
+    form.querySelector(".sucesso h3").focus();
   }
 
   function escapeHtml(s) {
@@ -147,11 +163,14 @@
         throw new Error(res.j.erro || "falha");
       })
       .catch(function () {
-        // Se o envio falhar, o lead não se perde: abre o WhatsApp com os dados preenchidos
+        // Se o envio falhar, o lead não se perde: oferece o WhatsApp com os dados preenchidos.
+        // Link em vez de window.open, que o navegador bloqueia fora do clique.
         botao.disabled = false;
-        msgStatus("Não conseguimos enviar agora. Abrindo o WhatsApp com a sua mensagem...", "erro");
+        status.className = "form__status erro";
+        status.innerHTML =
+          "Não conseguimos enviar agora. Mande pelo WhatsApp, a mensagem já vai preenchida: " +
+          '<a class="btn btn--sm" target="_blank" rel="noopener" href="' + linkWhats(textoWhats(d)) + '">Enviar pelo WhatsApp</a>';
         track("lead_fallback_whatsapp");
-        window.open(linkWhats(textoWhats(d)), "_blank", "noopener");
       });
   });
 })();
