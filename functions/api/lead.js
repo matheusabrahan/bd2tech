@@ -2,6 +2,7 @@
 // Recebe o formulário do site e entrega o lead pelos canais que estiverem configurados:
 //   LEADS              binding de KV: guarda cada lead (consulta pelo painel da Cloudflare)
 //   MAILER             service binding para o worker bd2tech-mailer (e-mail via Email Routing)
+//   DISCORD_WEBHOOK_URL (secret): posta cada lead num canal do Discord
 //   RESEND_API_KEY     + LEAD_TO_EMAIL (+ LEAD_FROM_EMAIL): envia e-mail via Resend
 // TURNSTILE_SECRET (secret): quando existe, exige o token do Turnstile enviado pelo formulário.
 //   LEAD_WEBHOOK_URL   POST JSON para um webhook (n8n, Make, Zapier, CRM, Slack...)
@@ -117,6 +118,36 @@ export async function onRequestPost({ request, env }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assunto, html, responder_para: lead.email || "" }),
       }).then((r) => { if (!r.ok) throw new Error(`mailer ${r.status}`); })
+    );
+  }
+
+  if (env.DISCORD_WEBHOOK_URL) {
+    const campo = (name, value, inline = true) => value && { name, value: String(value).slice(0, 1024), inline };
+    const sep = env.DISCORD_WEBHOOK_URL.includes("?") ? "&" : "?";
+    entregas.push(
+      fetch(`${env.DISCORD_WEBHOOK_URL}${sep}wait=true`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(8000),
+        body: JSON.stringify({
+          username: "Site BD2 Tech",
+          allowed_mentions: { parse: [] },
+          embeds: [{
+            title: `Novo lead: ${lead.nome}`.slice(0, 256),
+            color: 0x2dd4bf,
+            timestamp: lead.recebido_em,
+            fields: [
+              campo("Serviço", lead.servico),
+              campo("Investimento", lead.orcamento),
+              campo("Empresa", lead.empresa),
+              campo("WhatsApp", `[${lead.whatsapp}](${lead.whatsapp_link})`),
+              campo("E-mail", lead.email),
+              campo("Mensagem", lead.mensagem, false),
+              campo("Origem", Object.entries(lead.origem).map(([k, v]) => `${k}: ${v}`).join("\n"), false),
+            ].filter(Boolean),
+          }],
+        }),
+      }).then((r) => { if (!r.ok) throw new Error(`discord ${r.status}`); })
     );
   }
 
