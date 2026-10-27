@@ -3,7 +3,7 @@
   "use strict";
 
   // Número que recebe os contatos pelo WhatsApp (DDI + DDD + número, só dígitos)
-  var WHATSAPP = "5561982021300";
+  var WHATSAPP = "5562996676667";
 
   function linkWhats(msg) {
     return "https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(msg);
