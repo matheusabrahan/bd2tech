@@ -78,7 +78,10 @@
 
   // Máscara simples de telefone
   tel.addEventListener("input", function () {
-    var d = tel.value.replace(/\D/g, "").slice(0, 11);
+    var d = tel.value.replace(/\D/g, "").replace(/^0+/, "");
+    // Quem digita ou cola com o DDI (+55 61 9...) não perde dígito: o 55 sai antes de formatar
+    if (d.length > 11 && d.indexOf("55") === 0) d = d.slice(2);
+    d = d.slice(0, 11);
     if (d.length > 6) tel.value = "(" + d.slice(0, 2) + ") " + d.slice(2, d.length - 4) + "-" + d.slice(-4);
     else if (d.length > 2) tel.value = "(" + d.slice(0, 2) + ") " + d.slice(2);
     else tel.value = d;

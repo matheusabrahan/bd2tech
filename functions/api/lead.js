@@ -19,6 +19,21 @@ const json = (body, status = 200) =>
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
+// Resume de onde o visitante veio, em linguagem simples. Vazio quando não há campanha nem site de origem
+// (acesso direto), para o campo nem aparecer no Discord e no e-mail. O JSON completo continua salvo no KV.
+const ROTULOS = { utm_source: "Fonte", utm_medium: "Mídia", utm_campaign: "Campanha", utm_term: "Termo", utm_content: "Anúncio" };
+function textoOrigem(o) {
+  const linhas = Object.entries(ROTULOS).filter(([k]) => o[k]).map(([k, rotulo]) => `${rotulo}: ${o[k]}`);
+  if (o.gclid) linhas.push("Anúncio do Google (gclid)");
+  if (o.fbclid) linhas.push("Link do Facebook/Instagram (fbclid)");
+  try {
+    const host = o.referrer && new URL(o.referrer).hostname.replace(/^www\./, "");
+    if (host && !host.endsWith("bd2tech.com.br") && !host.endsWith("bd2tech.pages.dev")) linhas.push(`Site: ${host}`);
+  } catch {}
+  if (o.pagina && o.pagina !== "/") linhas.push(`Página: ${o.pagina}`);
+  return linhas;
+}
+
 async function turnstileValido(secret, token, request) {
   if (typeof token !== "string" || !token) return false;
   const corpo = new FormData();
@@ -81,6 +96,7 @@ export async function onRequestPost({ request, env }) {
 
   const o = typeof dados.origem === "object" && dados.origem ? dados.origem : {};
   lead.origem = Object.fromEntries(Object.entries(o).slice(0, 10).map(([k, v]) => [String(k).slice(0, 30), String(v).slice(0, 300)]));
+  const veioDe = textoOrigem(lead.origem);
   lead.id = crypto.randomUUID();
   lead.recebido_em = new Date().toISOString();
   // Registro do consentimento (LGPD): o formulário só envia com o aceite da Política de Privacidade
@@ -102,7 +118,7 @@ export async function onRequestPost({ request, env }) {
     ["Serviço", lead.servico],
     ["Investimento", lead.orcamento],
     ["Mensagem", lead.mensagem],
-    ["Origem", Object.entries(lead.origem).map(([k, v]) => `${k}: ${v}`).join(" · ")],
+    ["Veio de", veioDe.join(" · ")],
   ];
   const html =
     `<h2>Novo lead pelo site BD2 Tech</h2><table cellpadding="6">` +
@@ -143,7 +159,7 @@ export async function onRequestPost({ request, env }) {
               campo("WhatsApp", `[${lead.whatsapp}](${lead.whatsapp_link})`),
               campo("E-mail", lead.email),
               campo("Mensagem", lead.mensagem, false),
-              campo("Origem", Object.entries(lead.origem).map(([k, v]) => `${k}: ${v}`).join("\n"), false),
+              campo("Veio de", veioDe.join("\n"), false),
             ].filter(Boolean),
           }],
         }),
