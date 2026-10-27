@@ -337,6 +337,7 @@
             <label for="mensagem">Conte um pouco sobre o projeto</label>
             <textarea id="mensagem" name="mensagem" rows="4" maxlength="2000" placeholder="Ex.: quero que meus clientes agendem pelo site e recebam confirmação no WhatsApp."></textarea>
           </div>
+          <div class="cf-turnstile" data-sitekey="0x4AAAAAAFoZEBea-WvByXI0" data-callback="bd2TurnstileOk" data-language="pt-br"></div>
           <div class="hp" aria-hidden="true"><label>Não preencha<input name="site" tabindex="-1" autocomplete="off"></label></div>
           <label class="aceite"><input type="checkbox" name="aceite" required> <span>Concordo com o uso dos meus dados para contato, conforme a <a href="/privacidade/">Política de Privacidade</a>.</span></label>
           <button class="btn btn--lg btn--full" type="submit">Pedir meu diagnóstico gratuito</button>
@@ -372,5 +373,6 @@
   </a>
 
   <script src="/assets/app.js" defer></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </body>
 </html>

@@ -1,0 +1,12 @@
+name = "bd2tech-mailer"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+preview_urls = false
+
+[vars]
+DESTINO = "projectshortbr@gmail.com"
+
+[[send_email]]
+name = "SEND_EMAIL"
+destination_address = "projectshortbr@gmail.com"

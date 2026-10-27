@@ -141,22 +141,39 @@
     });
   }
 
+  // Turnstile (anti-robô, invisível): o token chega sozinho alguns instantes após carregar a página
+  var tokenPronto;
+  var tokenEspera = new Promise(function (ok) { tokenPronto = ok; });
+  window.bd2TurnstileOk = function () { tokenPronto(); };
+
+  function aguardarToken() {
+    var limite = new Promise(function (ok) { setTimeout(ok, 8000); });
+    return Promise.race([tokenEspera, limite]);
+  }
+
+  function renovarToken() {
+    tokenEspera = new Promise(function (ok) { tokenPronto = ok; });
+    try { if (window.turnstile) window.turnstile.reset(form.querySelector(".cf-turnstile")); } catch (e) {}
+  }
+
   form.addEventListener("submit", function (ev) {
     ev.preventDefault();
     if (!validar()) return;
 
-    var d = {};
-    new FormData(form).forEach(function (v, k) { d[k] = typeof v === "string" ? v.trim() : v; });
-    d.origem = origem();
-
     botao.disabled = true;
     msgStatus("Enviando...");
 
-    fetch("/api/lead", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(d)
-    })
+    var d = {};
+    aguardarToken()
+      .then(function () {
+        new FormData(form).forEach(function (v, k) { d[k] = typeof v === "string" ? v.trim() : v; });
+        d.origem = origem();
+        return fetch("/api/lead", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(d)
+        });
+      })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         if (res.ok && res.j.ok) return sucesso(d);
@@ -166,6 +183,7 @@
         // Se o envio falhar, o lead não se perde: oferece o WhatsApp com os dados preenchidos.
         // Link em vez de window.open, que o navegador bloqueia fora do clique.
         botao.disabled = false;
+        renovarToken();
         status.className = "form__status erro";
         status.innerHTML =
           "Não conseguimos enviar agora. Mande pelo WhatsApp, a mensagem já vai preenchida: " +

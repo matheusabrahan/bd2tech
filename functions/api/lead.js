@@ -1,7 +1,9 @@
 // Cloudflare Pages Function: POST /api/lead
-// Recebe o formulário do site e entrega o lead por até três canais, conforme o que estiver configurado:
+// Recebe o formulário do site e entrega o lead pelos canais que estiverem configurados:
 //   LEADS              binding de KV: guarda cada lead (consulta pelo painel da Cloudflare)
+//   MAILER             service binding para o worker bd2tech-mailer (e-mail via Email Routing)
 //   RESEND_API_KEY     + LEAD_TO_EMAIL (+ LEAD_FROM_EMAIL): envia e-mail via Resend
+// TURNSTILE_SECRET (secret): quando existe, exige o token do Turnstile enviado pelo formulário.
 //   LEAD_WEBHOOK_URL   POST JSON para um webhook (n8n, Make, Zapier, CRM, Slack...)
 // Se nenhum canal aceitar o lead, responde erro e o site abre o WhatsApp como alternativa.
 
@@ -15,6 +17,26 @@ const json = (body, status = 200) =>
 
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+async function turnstileValido(secret, token, request) {
+  if (typeof token !== "string" || !token) return false;
+  const corpo = new FormData();
+  corpo.append("secret", secret);
+  corpo.append("response", token.slice(0, 2048));
+  const ip = request.headers.get("CF-Connecting-IP");
+  if (ip) corpo.append("remoteip", ip);
+  try {
+    const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body: corpo,
+      signal: AbortSignal.timeout(8000),
+    });
+    return (await r.json()).success === true;
+  } catch (e) {
+    console.error("Falha ao validar Turnstile:", e);
+    return false;
+  }
+}
 
 export async function onRequestPost({ request, env }) {
   const origin = request.headers.get("Origin");
@@ -34,6 +56,10 @@ export async function onRequestPost({ request, env }) {
 
   // Honeypot: robôs preenchem o campo escondido. Fingimos sucesso.
   if (dados.site) return json({ ok: true });
+
+  if (env.TURNSTILE_SECRET && !(await turnstileValido(env.TURNSTILE_SECRET, dados["cf-turnstile-response"], request))) {
+    return json({ ok: false, erro: "captcha" }, 403);
+  }
 
   const lead = {};
   for (const [campo, max] of Object.entries(LIMITES)) {
@@ -67,21 +93,34 @@ export async function onRequestPost({ request, env }) {
     entregas.push(env.LEADS.put(`lead:${lead.recebido_em}:${lead.id}`, JSON.stringify(lead)));
   }
 
+  const linhas = [
+    ["Nome", lead.nome],
+    ["Empresa", lead.empresa],
+    ["WhatsApp", `<a href="${lead.whatsapp_link}">${esc(lead.whatsapp)}</a>`, true],
+    ["E-mail", lead.email],
+    ["Serviço", lead.servico],
+    ["Investimento", lead.orcamento],
+    ["Mensagem", lead.mensagem],
+    ["Origem", Object.entries(lead.origem).map(([k, v]) => `${k}: ${v}`).join(" · ")],
+  ];
+  const html =
+    `<h2>Novo lead pelo site BD2 Tech</h2><table cellpadding="6">` +
+    linhas.filter(([, v]) => v).map(([k, v, cru]) => `<tr><td><b>${k}</b></td><td>${cru ? v : esc(v).replace(/\n/g, "<br>")}</td></tr>`).join("") +
+    `</table>`;
+  const assunto = `Novo lead: ${lead.nome} · ${lead.servico}`;
+
+  // E-mail pelo Email Routing da Cloudflare: worker bd2tech-mailer ligado como service binding MAILER
+  if (env.MAILER) {
+    entregas.push(
+      env.MAILER.fetch("https://mailer/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assunto, html, responder_para: lead.email || "" }),
+      }).then((r) => { if (!r.ok) throw new Error(`mailer ${r.status}`); })
+    );
+  }
+
   if (env.RESEND_API_KEY && env.LEAD_TO_EMAIL) {
-    const linhas = [
-      ["Nome", lead.nome],
-      ["Empresa", lead.empresa],
-      ["WhatsApp", `<a href="${lead.whatsapp_link}">${esc(lead.whatsapp)}</a>`, true],
-      ["E-mail", lead.email],
-      ["Serviço", lead.servico],
-      ["Investimento", lead.orcamento],
-      ["Mensagem", lead.mensagem],
-      ["Origem", Object.entries(lead.origem).map(([k, v]) => `${k}: ${v}`).join(" · ")],
-    ];
-    const html =
-      `<h2>Novo lead pelo site BD2 Tech</h2><table cellpadding="6">` +
-      linhas.filter(([, v]) => v).map(([k, v, cru]) => `<tr><td><b>${k}</b></td><td>${cru ? v : esc(v).replace(/\n/g, "<br>")}</td></tr>`).join("") +
-      `</table>`;
     entregas.push(
       fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -91,7 +130,7 @@ export async function onRequestPost({ request, env }) {
           from: env.LEAD_FROM_EMAIL || "BD2 Tech <site@bd2tech.com.br>",
           to: env.LEAD_TO_EMAIL.split(",").map((s) => s.trim()),
           reply_to: lead.email || undefined,
-          subject: `Novo lead: ${lead.nome} · ${lead.servico}`,
+          subject: assunto,
           html,
         }),
       }).then((r) => { if (!r.ok) throw new Error(`resend ${r.status}`); })
