@@ -1,0 +1,9 @@
+# Segredos nunca vão para o repositório (ficam em ProjetosManus\BD2 TECH)
+*.key
+.env
+.env.*
+.dev.vars
+
+# Ferramentas locais
+.wrangler/
+node_modules/
