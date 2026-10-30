@@ -45,7 +45,7 @@ Se nenhum canal estiver configurado ou todos falharem, o formulário abre o What
 
 - **Ao alterar `assets/style.css` ou `assets/app.js`, troque o `?v=` nos links das três páginas** (index, privacidade, 404). O `_headers` guarda `/assets/*` por 7 dias no navegador; sem trocar a versão, quem já visitou o site continua vendo o CSS/JS antigo.
 
-- Número do WhatsApp: `WHATSAPP` no topo de `assets/app.js` (hoje +55 62 99667-6667) e `telephone` no JSON-LD de `index.html`.
+- Número do WhatsApp: `WHATSAPP` no topo de `assets/app.js` (hoje +55 61 99667-6667) e `telephone` no JSON-LD de `index.html`.
 - Google Analytics / Ads: cole o snippet do gtag no `<head>`. O site já dispara os eventos `generate_lead`, `whatsapp_click` e `lead_fallback_whatsapp`. O `_headers` já libera o googletagmanager no CSP.
 - UTMs (`utm_source`, `gclid`, `fbclid`...) da URL são enviados junto com o lead.
 
