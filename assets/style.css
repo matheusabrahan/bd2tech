@@ -243,3 +243,12 @@ input::placeholder, textarea::placeholder { color: var(--apagado); }
   .painel__topo, .painel__lista li, .painel__pe { padding-inline: 18px; }
 }
 @media (prefers-reduced-motion: reduce) { .menu { transition: none; } }
+
+/* Entrada das seções ao rolar: o bloco aparece com um contorno teal (como uma seleção
+   num editor) que some logo depois. Só o que está abaixo da primeira tela anima,
+   nada fica bloqueado e quem pede menos movimento vê tudo parado. */
+@media (prefers-reduced-motion: no-preference) {
+  .surge { opacity: 0; transform: translateY(18px); outline: 1px solid rgba(45, 212, 191, .55); outline-offset: 8px; border-radius: 4px;
+    transition: opacity .55s ease var(--d, 0s), transform .65s cubic-bezier(.2, .7, .2, 1) var(--d, 0s), outline-color .7s ease calc(var(--d, 0s) + .45s); }
+  .surge.visto { opacity: 1; transform: none; outline-color: rgba(45, 212, 191, 0); }
+}

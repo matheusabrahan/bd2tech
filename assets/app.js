@@ -41,6 +41,29 @@
     onScroll();
   }
 
+  // Entrada das seções ao rolar (só abaixo da primeira tela; nada fica bloqueado)
+  var reduzir = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!reduzir && "IntersectionObserver" in window) {
+    var alvos = [
+      ".sec__head", ".grupos > .grupo", ".setores > li", ".cases > li", ".passos > li",
+      ".socios > *", "#faq details", ".contato__txt", ".contato__in > .form"
+    ];
+    var obs = new IntersectionObserver(function (itens) {
+      itens.forEach(function (it) {
+        if (!it.isIntersecting) return;
+        it.target.classList.add("visto");
+        obs.unobserve(it.target);
+      });
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.12 });
+    document.querySelectorAll(alvos.join(",")).forEach(function (el) {
+      if (el.getBoundingClientRect().top < window.innerHeight) return;
+      var irmaos = Array.prototype.indexOf.call(el.parentNode.children, el);
+      el.style.setProperty("--d", Math.min(irmaos, 5) * 0.08 + "s");
+      el.classList.add("surge");
+      obs.observe(el);
+    });
+  }
+
   var ano = document.getElementById("ano");
   if (ano) ano.textContent = new Date().getFullYear();
 
