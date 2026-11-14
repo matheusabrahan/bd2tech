@@ -20,14 +20,20 @@ robots.txt, sitemap.xml SEO
 
 ## Deploy na Cloudflare Pages
 
-1. Suba esta pasta para um repositório no GitHub.
-2. No painel da Cloudflare: **Workers & Pages → Create → Pages → Connect to Git** e escolha o repositório.
-   - Framework preset: **None**
-   - Build command: *(vazio)*
-   - Build output directory: `/`
-3. Em **Custom domains**, adicione `bd2tech.com.br` e `www.bd2tech.com.br`.
+O projeto Pages `bd2tech` é de upload direto e o deploy é automático pelo GitHub Actions (`.github/workflows/deploy-pages.yml`):
+
+- **merge/push no `main`** → produção (bd2tech.com.br);
+- **pull request** → prévia em `<branch>.bd2tech.pages.dev`, com o link comentado no PR;
+- **Actions → Deploy Cloudflare Pages → Run workflow** → deploy manual.
+
+O workflow publica tudo menos `.git`, `.github`, `.claude`, `.wrangler`, `mailer/` e `README.md`, mantendo `functions/`.
+Precisa de dois secrets no repositório (Settings → Secrets and variables → Actions): `CLOUDFLARE_API_TOKEN`, um token com a permissão **Account → Cloudflare Pages → Edit**, e `CLOUDFLARE_ACCOUNT_ID`. Sem eles o workflow só avisa e pula o deploy.
+
+Configuração inicial do projeto (já feita):
+
+1. Em **Custom domains**, adicione `bd2tech.com.br` e `www.bd2tech.com.br`.
    Para mandar o `www` para o domínio principal, crie uma regra em **Rules → Redirect Rules** (ou Bulk Redirects): `www.bd2tech.com.br/*` → `https://bd2tech.com.br/${1}` (301).
-4. Configure pelo menos **um** canal de entrega de leads (Settings → Variables and Secrets / Bindings):
+2. Configure pelo menos **um** canal de entrega de leads (Settings → Variables and Secrets / Bindings):
 
 | Variável / binding | Para quê |
 |---|---|
@@ -39,13 +45,13 @@ robots.txt, sitemap.xml SEO
 
 Se nenhum canal estiver configurado ou todos falharem, o formulário abre o WhatsApp com a mensagem já preenchida, então o lead nunca se perde.
 
-5. **E-mail contato@bd2tech.com.br**: ative o **Email Routing** da Cloudflare e encaminhe para os e-mails dos sócios.
+3. **E-mail contato@bd2tech.com.br**: ative o **Email Routing** da Cloudflare e encaminhe para os e-mails dos sócios.
 
 ## Ajustes rápidos
 
 - **Ao alterar `assets/style.css` ou `assets/app.js`, troque o `?v=` nos links das três páginas** (index, privacidade, 404). O `_headers` guarda `/assets/*` por 7 dias no navegador; sem trocar a versão, quem já visitou o site continua vendo o CSS/JS antigo.
 
-- Número do WhatsApp: `WHATSAPP` no topo de `assets/app.js` (hoje +55 61 99667-6667) e `telephone` no JSON-LD de `index.html`.
+- Número do WhatsApp: `WHATSAPP` no topo de `assets/app.js` (hoje +55 61 99136-1653) e `telephone` no JSON-LD de `index.html`.
 - Google Analytics / Ads: cole o snippet do gtag no `<head>`. O site já dispara os eventos `generate_lead`, `whatsapp_click` e `lead_fallback_whatsapp`. O `_headers` já libera o googletagmanager no CSP.
 - UTMs (`utm_source`, `gclid`, `fbclid`...) da URL são enviados junto com o lead.
 
