@@ -20,14 +20,20 @@ robots.txt, sitemap.xml SEO
 
 ## Deploy na Cloudflare Pages
 
-1. Suba esta pasta para um repositório no GitHub.
-2. No painel da Cloudflare: **Workers & Pages → Create → Pages → Connect to Git** e escolha o repositório.
-   - Framework preset: **None**
-   - Build command: *(vazio)*
-   - Build output directory: `/`
-3. Em **Custom domains**, adicione `bd2tech.com.br` e `www.bd2tech.com.br`.
+O projeto Pages `bd2tech` é de upload direto e o deploy é automático pelo GitHub Actions (`.github/workflows/deploy-pages.yml`):
+
+- **merge/push no `main`** → produção (bd2tech.com.br);
+- **pull request** → prévia em `<branch>.bd2tech.pages.dev`, com o link comentado no PR;
+- **Actions → Deploy Cloudflare Pages → Run workflow** → deploy manual.
+
+O workflow publica tudo menos `.git`, `.github`, `.claude`, `.wrangler`, `mailer/` e `README.md`, mantendo `functions/`.
+Precisa de dois secrets no repositório (Settings → Secrets and variables → Actions): `CLOUDFLARE_API_TOKEN`, um token com a permissão **Account → Cloudflare Pages → Edit**, e `CLOUDFLARE_ACCOUNT_ID`. Sem eles o workflow só avisa e pula o deploy.
+
+Configuração inicial do projeto (já feita):
+
+1. Em **Custom domains**, adicione `bd2tech.com.br` e `www.bd2tech.com.br`.
    Para mandar o `www` para o domínio principal, crie uma regra em **Rules → Redirect Rules** (ou Bulk Redirects): `www.bd2tech.com.br/*` → `https://bd2tech.com.br/${1}` (301).
-4. Configure pelo menos **um** canal de entrega de leads (Settings → Variables and Secrets / Bindings):
+2. Configure pelo menos **um** canal de entrega de leads (Settings → Variables and Secrets / Bindings):
 
 | Variável / binding | Para quê |
 |---|---|
@@ -39,7 +45,7 @@ robots.txt, sitemap.xml SEO
 
 Se nenhum canal estiver configurado ou todos falharem, o formulário abre o WhatsApp com a mensagem já preenchida, então o lead nunca se perde.
 
-5. **E-mail contato@bd2tech.com.br**: ative o **Email Routing** da Cloudflare e encaminhe para os e-mails dos sócios.
+3. **E-mail contato@bd2tech.com.br**: ative o **Email Routing** da Cloudflare e encaminhe para os e-mails dos sócios.
 
 ## Ajustes rápidos
 

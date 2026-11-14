@@ -1,0 +1,74 @@
+# Publica o site no Cloudflare Pages (projeto "bd2tech").
+# - push no main  -> produção (bd2tech.com.br)
+# - pull request  -> prévia em <branch>.bd2tech.pages.dev (link comentado no PR)
+# Precisa dos secrets do repositório: CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID.
+name: Deploy Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+  pull-requests: write
+
+concurrency:
+  group: pages-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verifica secrets
+        id: check
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$ACCOUNT" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID ausentes; deploy pulado."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Só o que vai para o ar: fica de fora o que é do repositório, das ferramentas e o worker mailer.
+      - name: Monta a pasta publicada
+        run: |
+          mkdir -p "$RUNNER_TEMP/site"
+          rsync -a \
+            --exclude='.git' --exclude='.github' --exclude='.claude' --exclude='.wrangler' \
+            --exclude='mailer' --exclude='README.md' --exclude='.gitignore' --exclude='*.key' \
+            ./ "$RUNNER_TEMP/site/"
+          find "$RUNNER_TEMP/site" -type f | sort
+
+      - name: Publica
+        id: deploy
+        if: steps.check.outputs.ok == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ${{ runner.temp }}/site
+          command: >-
+            pages deploy . --project-name=bd2tech
+            --branch=${{ github.head_ref || github.ref_name }}
+            --commit-hash=${{ github.event.pull_request.head.sha || github.sha }}
+            --commit-dirty=true
+
+      - name: Comenta a prévia no PR
+        if: github.event_name == 'pull_request' && steps.deploy.outcome == 'success'
+        uses: actions/github-script@v7
+        env:
+          URL: ${{ steps.deploy.outputs.deployment-url }}
+          ALIAS: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
+        with:
+          script: |
+            const body = `Prévia no Cloudflare Pages: ${process.env.ALIAS || process.env.URL}\n(deploy: ${process.env.URL})`;
+            await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
